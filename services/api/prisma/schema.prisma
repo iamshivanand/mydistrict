@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CONSUMER
+  PROVIDER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BookingStatus {
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMode {
+  ONLINE
+  OFFLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CASH_DUE
+  CASH_COLLECTED
+}
+
+enum IdType {
+  AADHAAR
+  PAN
+  DL
+  VOTER
+  OTHER
+}
+
+model User {
+  id            String     @id @default(cuid())
+  phone         String     @unique
+  phoneVerified Boolean    @default(false)
+  name          String?
+  email         String?
+  avatarUrl     String?
+  role          Role       @default(CONSUMER)
+  status        UserStatus @default(ACTIVE)
+  blockedAt     DateTime?
+  blockedReason String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  providerProfile ProviderProfile?
+  bookingsAsConsumer Booking[] @relation("ConsumerBookings")
+  bookingsAsProvider Booking[] @relation("ProviderBookings")
+  reviewsWritten  Review[] @relation("ReviewsWritten")
+  reviewsReceived Review[] @relation("ReviewsReceived")
+  auditActions    AuditLog[] @relation("AuditActor")
+}
+
+model District {
+  id        String    @id @default(cuid())
+  name      String
+  state     String
+  slug      String    @unique
+  active    Boolean   @default(true)
+  pincodes  Pincode[]
+  providers ProviderProfile[]
+  bookings  Booking[]
+}
+
+model Pincode {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  districtId String
+  district   District @relation(fields: [districtId], references: [id])
+  providers  ProviderProfile[]
+}
+
+model ServiceCategory {
+  id                  String    @id @default(cuid())
+  name                String
+  slug                String    @unique
+  icon                String?
+  requiresLocation    Boolean   @default(false)
+  requiresCertificate Boolean   @default(false)
+  active              Boolean   @default(true)
+  services            Service[]
+}
+
+model Service {
+  id          String          @id @default(cuid())
+  name        String
+  categoryId  String
+  category    ServiceCategory @relation(fields: [categoryId], references: [id])
+  description String?
+  basePrice   Int             @default(0)
+  unit        String          @default("visit")
+  active      Boolean         @default(true)
+  createdById String?
+  createdAt   DateTime        @default(now())
+  providerServices ProviderService[]
+  bookings    Booking[]
+}
+
+model ProviderProfile {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String
+  bio               String?
+  addressLine       String
+  pincodeId         String?
+  pincode           Pincode?           @relation(fields: [pincodeId], references: [id])
+  pincodeCode       String?
+  districtId        String
+  district          District           @relation(fields: [districtId], references: [id])
+  lat               Float?
+  lng               Float?
+  showLocation      Boolean            @default(false)
+  idType            IdType             @default(AADHAAR)
+  idNumber          String?
+  idFrontUrl        String?
+  idBackUrl         String?
+  addressProofUrl   String?
+  selfieUrl         String?
+  certificateUrls   String[]           @default([])
+  bankUpiId         String?
+  consentVersion    String             @default("v1")
+  verificationStatus VerificationStatus @default(PENDING)
+  rejectionReason   String?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  avgRating         Float              @default(0)
+  totalReviews      Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  services ProviderService[]
+}
+
+model ProviderService {
+  id                   String   @id @default(cuid())
+  providerId           String
+  provider             ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId            String
+  service              Service  @relation(fields: [serviceId], references: [id])
+  price                Int
+  durationMin          Int      @default(60)
+  serviceAreaRadiusKm  Int      @default(10)
+  active               Boolean  @default(true)
+
+  @@unique([providerId, serviceId])
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  consumerId      String
+  consumer        User          @relation("ConsumerBookings", fields: [consumerId], references: [id])
+  providerId      String
+  provider        User          @relation("ProviderBookings", fields: [providerId], references: [id])
+  serviceId       String
+  service         Service       @relation(fields: [serviceId], references: [id])
+  districtId      String
+  district        District      @relation(fields: [districtId], references: [id])
+  scheduledAt     DateTime
+  addressText     String
+  lat             Float?
+  lng             Float?
+  status          BookingStatus @default(REQUESTED)
+  paymentMode     PaymentMode   @default(OFFLINE)
+  paymentStatus   PaymentStatus @default(PENDING)
+  razorpayOrderId String?
+  priceQuoted     Int
+  priceFinal      Int?
+  completionOtp   String
+  cancelledBy     String?
+  cancelReason    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  review Review?
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  consumerId String
+  consumer   User     @relation("ReviewsWritten", fields: [consumerId], references: [id])
+  providerId String
+  provider   User     @relation("ReviewsReceived", fields: [providerId], references: [id])
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actor       User     @relation("AuditActor", fields: [actorId], references: [id])
+  action      String
+  targetType  String
+  targetId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([targetType, targetId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  channel   String
+  title     String
+  body      String
+  payload   Json?
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

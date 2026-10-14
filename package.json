@@ -1,0 +1,27 @@
+{
+  "name": "mydistrict",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/admin",
+    "apps/mobile",
+    "services/api",
+    "packages/shared-types",
+    "packages/api-client"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w services/api",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:admin": "npm run dev -w apps/admin",
+    "build": "npm run build -ws",
+    "typecheck": "npm run typecheck -w services/api -w apps/web -w apps/admin",
+    "db:migrate": "npm run db:migrate -w services/api",
+    "db:seed": "npm run db:seed -w services/api",
+    "docker:up": "docker compose -f infra/docker-compose.yml up --build",
+    "docker:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "dependencies": {
+    "@next/swc-win32-x64-msvc": "^16.4.0"
+  }
+}
