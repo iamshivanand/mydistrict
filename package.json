@@ -23,5 +23,8 @@
   },
   "dependencies": {
     "@next/swc-win32-x64-msvc": "^16.4.0"
+  },
+  "devDependencies": {
+    "@expo/cli": "^0.18.31"
   }
 }

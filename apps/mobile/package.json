@@ -9,6 +9,7 @@
     "ios": "expo start --ios"
   },
   "dependencies": {
+    "@expo/cli": "^58.1.20",
     "@mydistrict/api-client": "*",
     "expo": "~51.0.0",
     "expo-secure-store": "~13.0.0",
